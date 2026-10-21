@@ -3,6 +3,10 @@ import requests
 
 API_URL = "https://commons.wikimedia.org/w/api.php"
 
+HEADERS = {
+    "User-Agent": "EasyBuyerCloud/0.6 (Telegram: @easybuyerpz)"
+}
+
 PRODUCTS = [
     {
         "name": "Nike Air Force 1",
@@ -40,34 +44,42 @@ def find_images(product):
         "generator": "search",
         "gsrsearch": product["query"],
         "gsrnamespace": 6,
-        "gsrlimit": 30,
+        "gsrlimit": 20,
         "prop": "imageinfo",
         "iiprop": "url|extmetadata",
+        "iiurlwidth": 600,
         "format": "json",
     }
 
     response = requests.get(
         API_URL,
         params=params,
-        headers={
-            "User-Agent": "EasyBuyerCloud/0.2 (Telegram @easybuyerpz)"
-        },
-        timeout=25,
+        headers=HEADERS,
+        timeout=30,
     )
     response.raise_for_status()
 
-    pages = response.json().get("query", {}).get("pages", {})
+    data = response.json()
+    pages = data.get("query", {}).get("pages", {})
+
     matches = []
 
     for page in pages.values():
-        title = page.get("title", "").lower()
+        title = page.get("title", "")
+        title_lower = title.lower()
 
         if not all(
-            word in title for word in product["keywords"]
+            word in title_lower
+            for word in product["keywords"]
         ):
             continue
 
-        info = page.get("imageinfo", [{}])[0]
+        info_list = page.get("imageinfo", [])
+
+        if not info_list:
+            continue
+
+        info = info_list[0]
         metadata = info.get("extmetadata", {})
 
         license_name = metadata.get(
@@ -77,17 +89,22 @@ def find_images(product):
         if license_name not in ALLOWED_LICENSES:
             continue
 
-        image_url = info.get("url")
+        image_url = info.get("thumburl")
 
         if not image_url:
             continue
 
         matches.append({
-            "title": page["title"],
+            "title": title,
             "image_url": image_url,
+            "original_url": info.get("url", ""),
+            "description_url": info.get("descriptionurl", ""),
             "license": license_name,
             "license_url": metadata.get(
                 "LicenseUrl", {}
+            ).get("value", ""),
+            "artist": metadata.get(
+                "Artist", {}
             ).get("value", ""),
         })
 
@@ -95,8 +112,8 @@ def find_images(product):
 
 
 def main():
-    print("EasyBuyer: точный поиск моделей")
-    print("--------------------------------")
+    print("EasyBuyer: поиск уменьшенных фотографий")
+    print("--------------------------------------")
 
     for product in PRODUCTS:
         print("\nМОДЕЛЬ:", product["name"])
@@ -104,20 +121,18 @@ def main():
         try:
             images = find_images(product)
 
-            if not images:
-                print("Подходящие фотографии не найдены")
-                continue
+            print("Найдено фото:", len(images))
 
-            for image in images[:5]:
-                print("Фото:", image["title"])
-                print("Ссылка:", image["image_url"])
-                print("Лицензия:", image["license"])
+            for item in images[:3]:
+                print("Фото:", item["title"])
+                print("Ссылка:", item["image_url"])
+                print("Лицензия:", item["license"])
                 print("---")
 
         except requests.RequestException as error:
-            print("Ошибка:", error)
+            print("Ошибка сети:", error)
 
-    print("\nТЕСТ ЗАВЕРШЁН. Ничего не опубликовано.")
+    print("\nТЕСТ ЗАВЕРШЁН. В Telegram ничего не отправлено.")
 
 
 if __name__ == "__main__":
