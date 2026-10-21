@@ -51,7 +51,7 @@ def create_collage(images, product_name):
         )
         return None
 
-    selected = images[:6]
+    selected = images[:3]
     columns = 3
     rows = (len(selected) + columns - 1) // columns
 
@@ -80,7 +80,7 @@ def create_collage(images, product_name):
         except Exception as error:
             print("Не удалось загрузить фото:", error)
 
-    if successful < 3:
+    if successful < 1:
         print("Недостаточно загруженных фотографий")
         return None
 
