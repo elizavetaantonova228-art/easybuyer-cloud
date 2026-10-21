@@ -3,21 +3,44 @@ import requests
 
 API_URL = "https://commons.wikimedia.org/w/api.php"
 
-SEARCH_TERMS = [
-    "Nike Air Force 1 sneakers",
-    "Adidas Samba shoes",
-    "New Balance 530 shoes",
-    "Timberland boots",
+PRODUCTS = [
+    {
+        "name": "Nike Air Force 1",
+        "query": "Nike Air Force 1",
+        "keywords": ["nike", "air", "force"],
+    },
+    {
+        "name": "Adidas Samba",
+        "query": "Adidas Samba",
+        "keywords": ["adidas", "samba"],
+    },
+    {
+        "name": "New Balance 530",
+        "query": "New Balance 530",
+        "keywords": ["new", "balance", "530"],
+    },
+    {
+        "name": "Timberland 6 Inch",
+        "query": "Timberland 6 inch boots",
+        "keywords": ["timberland"],
+    },
 ]
 
+ALLOWED_LICENSES = {
+    "CC0",
+    "CC BY 4.0",
+    "CC BY-SA 4.0",
+    "Public domain",
+}
 
-def search_images(query, limit=8):
+
+def find_images(product):
     params = {
         "action": "query",
         "generator": "search",
-        "gsrsearch": f'filetype:bitmap "{query}"',
+        "gsrsearch": product["query"],
         "gsrnamespace": 6,
-        "gsrlimit": limit,
+        "gsrlimit": 30,
         "prop": "imageinfo",
         "iiprop": "url|extmetadata",
         "format": "json",
@@ -27,16 +50,23 @@ def search_images(query, limit=8):
         API_URL,
         params=params,
         headers={
-            "User-Agent": "EasyBuyerCloud/0.1 (Telegram: @easybuyerpz)"
+            "User-Agent": "EasyBuyerCloud/0.2 (Telegram @easybuyerpz)"
         },
         timeout=25,
     )
     response.raise_for_status()
 
     pages = response.json().get("query", {}).get("pages", {})
-    results = []
+    matches = []
 
     for page in pages.values():
+        title = page.get("title", "").lower()
+
+        if not all(
+            word in title for word in product["keywords"]
+        ):
+            continue
+
         info = page.get("imageinfo", [{}])[0]
         metadata = info.get("extmetadata", {})
 
@@ -44,46 +74,48 @@ def search_images(query, limit=8):
             "LicenseShortName", {}
         ).get("value", "Unknown")
 
-        license_url = metadata.get(
-            "LicenseUrl", {}
-        ).get("value", "")
+        if license_name not in ALLOWED_LICENSES:
+            continue
 
         image_url = info.get("url")
 
-        if image_url:
-            results.append({
-                "title": page.get("title", ""),
-                "image_url": image_url,
-                "license": license_name,
-                "license_url": license_url,
-            })
+        if not image_url:
+            continue
 
-    return results
+        matches.append({
+            "title": page["title"],
+            "image_url": image_url,
+            "license": license_name,
+            "license_url": metadata.get(
+                "LicenseUrl", {}
+            ).get("value", ""),
+        })
+
+    return matches
 
 
 def main():
-    print("EasyBuyer: поиск фотографий товаров")
-    print("---------------------------------")
+    print("EasyBuyer: точный поиск моделей")
+    print("--------------------------------")
 
-    for product in SEARCH_TERMS:
-        print(f"\nТОВАР: {product}")
+    for product in PRODUCTS:
+        print("\nМОДЕЛЬ:", product["name"])
 
         try:
-            images = search_images(product)
+            images = find_images(product)
 
             if not images:
-                print("Фотографии не найдены")
+                print("Подходящие фотографии не найдены")
                 continue
 
             for image in images[:5]:
-                print("Название:", image["title"])
-                print("Фото:", image["image_url"])
+                print("Фото:", image["title"])
+                print("Ссылка:", image["image_url"])
                 print("Лицензия:", image["license"])
-                print("Условия:", image["license_url"])
                 print("---")
 
         except requests.RequestException as error:
-            print("Ошибка поиска:", error)
+            print("Ошибка:", error)
 
     print("\nТЕСТ ЗАВЕРШЁН. Ничего не опубликовано.")
 
