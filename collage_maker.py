@@ -47,12 +47,12 @@ def create_collage(images, product_name):
         print(
             "Пропуск:",
             product_name,
-            "— найдено меньше 3 фотографий",
+"— фотографии не найдены",
         )
         return None
 
     selected = images[:3]
-    columns = 3
+columns = len(selected)
     rows = (len(selected) + columns - 1) // columns
 
     collage = Image.new(
