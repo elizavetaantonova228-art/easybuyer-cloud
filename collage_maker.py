@@ -43,7 +43,7 @@ def prepare_image(image):
 
 
 def create_collage(images, product_name):
-    if len(images) < 3:
+    if len(images) < 1:
         print(
             "Пропуск:",
             product_name,
