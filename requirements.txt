@@ -1,3 +1,4 @@
 requests>=2.31,<3
 python-dotenv>=1,<2
 APScheduler>=3.10,<4
+pillow>=10,<14
